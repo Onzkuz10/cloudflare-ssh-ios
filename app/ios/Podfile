@@ -21,8 +21,8 @@ target 'CloudflareSSH' do
     :app_path => "#{Pod::Config.instance.installation_root}/.."
   )
 
-  # gomobile-generated iOS framework
-  pod 'CFTunnel', :path => './CFTunnel.xcframework'
+  # gomobile-generated xcframework — linked as a vendored framework
+  pod 'CFTunnel', :path => '../CFTunnelPod'
 
   post_install do |installer|
     react_native_post_install(

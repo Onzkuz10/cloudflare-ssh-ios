@@ -20,3 +20,6 @@ app/.metro-health-check*
 
 # macOS
 .DS_Store
+
+# gomobile build output
+app/ios/CFTunnelPod/CFTunnel.xcframework/

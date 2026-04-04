@@ -41,13 +41,13 @@ jobs:
 
       - name: Build xcframework
         working-directory: go
-        run: gomobile bind -v -target ios -o ../CFTunnel.xcframework ./cftunnel/
+        run: gomobile bind -v -target ios -o ../app/ios/CFTunnelPod/CFTunnel.xcframework ./cftunnel/
 
       - name: Upload xcframework artifact
         uses: actions/upload-artifact@v5
         with:
           name: CFTunnel.xcframework
-          path: CFTunnel.xcframework
+          path: app/ios/CFTunnelPod/CFTunnel.xcframework
           retention-days: 7
 
   # ── 3. JS type-check ──────────────────────────────────────────────────────
