@@ -4,22 +4,19 @@ An iOS SSH client with native [Cloudflare Tunnel](https://developers.cloudflare.
 
 Connects to servers behind Cloudflare Tunnels by reimplementing the `cloudflared access ssh` proxy using the original Go source compiled to an iOS framework via `gomobile`.
 
+![CI](https://github.com/Ankcorn/cloudflare-ssh-ios/actions/workflows/build.yml/badge.svg)
+
 ---
 
 ## How it works
 
 ```
 iPhone App
-  └── CF Access OAuth (WebView / ASWebAuthenticationSession)
+  └── CF Access OAuth (ASWebAuthenticationSession)
         └── JWT token → WebSocket to Cloudflare edge
               └── Raw TCP tunnel → your server :22
-                    └── SSH session (libssh2)
+                    └── SSH session (golang.org/x/crypto/ssh)
 ```
-
-1. **Auth** — PKCE OAuth flow against Cloudflare Access, stores short-lived JWT
-2. **Tunnel** — Go code from `cloudflared` compiled via `gomobile`, opens WebSocket tunnel to CF edge
-3. **SSH** — `libssh2` native module accepts the tunnel as its transport layer
-4. **UI** — React Native terminal emulator ([xterm.js](https://xtermjs.org/) in a WebView or `react-native-xterm`)
 
 ---
 
@@ -28,65 +25,56 @@ iPhone App
 ```
 cloudflare-ssh-ios/
 ├── go/                        # Go tunnel library
-│   ├── cfaccess/              # Extracted + trimmed cloudflared access logic
-│   │   ├── tunnel.go          # WebSocket tunnel to CF edge
-│   │   ├── auth.go            # CF Access JWT handling
-│   │   └── bridge.go          # gomobile-compatible API surface
-│   └── go.mod
-├── ios/                       # Native iOS / Xcode project
-│   ├── CFTunnel.xcframework   # Output of gomobile bind
-│   └── SSHBridge/             # libssh2 Swift wrapper + RN native module
-├── src/                       # React Native app
-│   ├── screens/
-│   │   ├── HostList.tsx       # Saved hosts
-│   │   ├── Connect.tsx        # Auth + connection flow
-│   │   └── Terminal.tsx       # SSH terminal UI
-│   ├── modules/
-│   │   ├── CFTunnel.ts        # RN bridge to Go framework
-│   │   └── SSH.ts             # RN bridge to libssh2
-│   └── storage/               # Host configs (keychain for credentials)
-├── PLAN.md
-└── README.md
+│   └── cftunnel/
+│       ├── bridge.go          # gomobile-compatible API (Ping → real Dial in Phase 2)
+│       └── bridge_test.go
+├── app/                       # React Native app
+│   ├── src/modules/CFTunnel.ts  # JS bridge to native module
+│   ├── App.tsx                  # Phase 1 smoke-test UI
+│   └── ios/
+│       ├── CFTunnelBridge/    # ObjC RCT native module
+│       └── CFTunnel.xcframework  # gomobile output (gitignored, built by CI/setup script)
+├── scripts/
+│   └── setup-mac.sh           # One-shot Mac setup
+└── .github/workflows/build.yml
 ```
 
 ---
 
-## Development setup
-
-### Prerequisites
-
-- Go 1.22+
-- `gomobile` (`go install golang.org/x/mobile/cmd/gomobile@latest`)
-- Xcode 15+
-- React Native 0.74+
-- Node 20+
-
-### Build the Go framework
+## Getting started (Mac)
 
 ```bash
-cd go
-gomobile init
-gomobile bind -target ios -o ../ios/CFTunnel.xcframework .
+git clone https://github.com/Ankcorn/cloudflare-ssh-ios
+cd cloudflare-ssh-ios
+./scripts/setup-mac.sh
 ```
 
-### Run the app
+Then open `app/ios/CloudflareSSH.xcworkspace` in Xcode, select your iPhone, hit **Run**.
 
-```bash
-npm install
-npx react-native run-ios
-```
+---
+
+## CI
+
+Three jobs run on every push:
+
+| Job | Runner | What it does |
+|---|---|---|
+| `go-test` | ubuntu-latest | `go test ./...` on the tunnel library |
+| `build-ios-framework` | macos-15 | `gomobile bind` → uploads `CFTunnel.xcframework` artifact |
+| `js-check` | ubuntu-latest | `tsc --noEmit` on the RN app |
+
+Download the latest `CFTunnel.xcframework` from the Actions artifacts tab if you don't want to build Go locally.
 
 ---
 
 ## References
 
-- [cloudflare/cloudflared](https://github.com/cloudflare/cloudflared) — source of the tunnel/access logic
-- [golang.org/x/mobile](https://github.com/golang/mobile) — gomobile for iOS framework compilation
-- [Tailscale iOS app](https://github.com/tailscale/tailscale) — reference for Go + iOS Network Extension pattern
-- [libssh2](https://libssh2.org/) — SSH client C library
+- [cloudflare/cloudflared](https://github.com/cloudflare/cloudflared)
+- [golang.org/x/mobile](https://github.com/golang/mobile)
+- [Tailscale iOS](https://github.com/tailscale/tailscale) — reference for Go + iOS pattern
 
 ---
 
 ## Status
 
-🚧 Early planning phase — see [PLAN.md](./PLAN.md)
+🚧 Phase 1 — Go bridge smoke test. See [PLAN.md](./PLAN.md)
