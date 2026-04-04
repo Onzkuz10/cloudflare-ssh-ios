@@ -11,8 +11,8 @@ jobs:
     name: Go tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
         with:
           go-version: '1.22'
       - run: go test ./cftunnel/...
@@ -23,9 +23,9 @@ jobs:
     name: Build iOS framework
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version: '1.22'
 
@@ -41,7 +41,7 @@ jobs:
         run: gomobile bind -v -target ios -o ../CFTunnel.xcframework ./cftunnel/
 
       - name: Upload xcframework artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: CFTunnel.xcframework
           path: CFTunnel.xcframework
@@ -52,8 +52,8 @@ jobs:
     name: JS typecheck & lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: "24"
           cache: 'npm'
