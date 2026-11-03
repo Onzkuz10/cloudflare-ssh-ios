@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 jobs:
   # ── 1. Go unit tests (Linux, fast) ────────────────────────────────────────
@@ -65,3 +66,63 @@ jobs:
         working-directory: app
       - run: npx tsc --noEmit
         working-directory: app
+
+  # ── 4. Unsigned .ipa for sideloading (AltStore / Sideloadly re-sign it) ───
+  build-ipa:
+    name: Build unsigned .ipa
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.23'
+          cache-dependency-path: go/go.sum
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: app/package-lock.json
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+          working-directory: app
+
+      - name: Build CFTunnel.xcframework
+        working-directory: go
+        run: |
+          go install golang.org/x/mobile/cmd/gomobile@v0.0.0-20240213143359-d1f7d3436075
+          go install golang.org/x/mobile/cmd/gobind@v0.0.0-20240213143359-d1f7d3436075
+          gomobile bind -target ios -o ../app/ios/CFTunnelPod/CFTunnel.xcframework ./cftunnel/
+
+      - name: Install JS deps
+        working-directory: app
+        run: npm ci
+
+      - name: Install pods
+        working-directory: app/ios
+        run: bundle exec pod install
+
+      - name: Build Release (unsigned)
+        working-directory: app/ios
+        run: |
+          set -o pipefail
+          xcodebuild build             -workspace CloudflareSSH.xcworkspace             -scheme CloudflareSSH             -configuration Release             -sdk iphoneos             -destination 'generic/platform=iOS'             -derivedDataPath build             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""             | tail -n 40
+
+      - name: Package .ipa
+        run: |
+          APP=$(find app/ios/build/Build/Products/Release-iphoneos -maxdepth 1 -name '*.app' | head -1)
+          test -n "$APP"
+          mkdir -p Payload
+          cp -R "$APP" Payload/
+          zip -qry CloudflareSSH-unsigned.ipa Payload
+          ls -lh CloudflareSSH-unsigned.ipa
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: CloudflareSSH-unsigned.ipa
+          path: CloudflareSSH-unsigned.ipa
+          retention-days: 14
